@@ -1,0 +1,15 @@
+[project]
+name = "local-yandex-disk-uploader"
+version = "0.1.0"
+description = "Local FastAPI web UI for uploading files to Yandex.Disk through the official REST API."
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi==0.136.3",
+  "httpx==0.28.1",
+  "keyring==25.7.0",
+  "python-multipart==0.0.32",
+  "uvicorn==0.30.6",
+]
+
+[tool.setuptools]
+packages = ["app", "app.yandex_disk"]

@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Local Yandex.Disk Uploader</title>
+    <link rel="icon" type="image/png" href="/static/icon.png?v=2" />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <h1>Yandex.Disk Local Uploader</h1>
+        <p>Локальный FastAPI-клиент для официального REST API Яндекс.Диска</p>
+      </div>
+      <span class="status-pill" id="health">127.0.0.1</span>
+    </header>
+
+    <main class="layout">
+      <aside class="sidebar">
+        <section class="panel">
+          <h2>Аккаунт</h2>
+          <label>
+            Название
+            <input id="accountLabel" type="text" autocomplete="off" placeholder="Основной диск" />
+          </label>
+          <label>
+            OAuth-токен
+            <input id="token" type="password" autocomplete="off" placeholder="y0_Ag..." />
+          </label>
+          <fieldset class="segmented">
+            <legend>Хранение токена</legend>
+            <label><input type="radio" name="storage" value="keyring" checked /> keyring</label>
+            <label><input type="radio" name="storage" value="memory" /> только память</label>
+          </fieldset>
+          <button id="addAccount" type="button">Добавить</button>
+        </section>
+
+        <section class="panel help-panel">
+          <h2>Как получить токен</h2>
+          <p class="help-note">Выберите “Для авторизации пользователей”. В Suggest Hostname ничего не добавляйте.</p>
+          <details open>
+            <summary>Поля регистрации</summary>
+            <ol>
+              <li>Название: Local Yandex Disk Uploader.</li>
+              <li>Иконка: необязательно.</li>
+              <li>Почта: ваша почта.</li>
+              <li>Платформа: Веб-сервисы.</li>
+              <li>Redirect URI: https://oauth.yandex.ru/verification_code, затем нажать +.</li>
+              <li>Suggest Hostname: оставить пустым.</li>
+            </ol>
+          </details>
+          <details>
+            <summary>Права и токен</summary>
+            <ol>
+              <li>В “Дополнительные” добавьте cloud_api:disk.info.</li>
+              <li>Добавьте cloud_api:disk.read.</li>
+              <li>Добавьте cloud_api:disk.write.</li>
+              <li>После создания OAuth-клиента скопируйте ClientID.</li>
+              <li>Client secret в это приложение не вставляйте.</li>
+              <li>Откройте authorize-ссылку с ClientID и скопируйте access_token из адресной строки.</li>
+              <li>Именно access_token вставьте выше в поле OAuth-токен.</li>
+            </ol>
+          </details>
+          <div class="link-list">
+            <a href="https://oauth.yandex.ru/client/new" target="_blank" rel="noreferrer">Регистрируем OAuth-клиента</a>
+            <a href="https://yandex.com/dev/id/doc/ru/tokens/debug-token" target="_blank" rel="noreferrer">Инструкция по debugging token</a>
+            <a href="https://yandex.com/dev/disk-api/doc/ru/" target="_blank" rel="noreferrer">Документация Disk API</a>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Выбор</h2>
+          <label>
+            Аккаунт
+            <select id="accounts"></select>
+          </label>
+          <div class="button-row">
+            <button id="checkToken" type="button">Проверить</button>
+            <button id="loadDiskInfo" type="button">Инфо</button>
+          </div>
+        </section>
+      </aside>
+
+      <section class="workspace">
+        <div class="grid">
+          <section class="panel">
+            <h2>Загрузка</h2>
+            <fieldset class="segmented">
+              <legend>Что загрузить</legend>
+              <label><input type="radio" name="uploadMode" value="file" checked /> файл</label>
+              <label><input type="radio" name="uploadMode" value="folder" /> папку</label>
+            </fieldset>
+            <label>
+              Файл или папка
+              <input id="file" type="file" />
+            </label>
+            <label>
+              Путь на Диске
+              <input id="diskPath" type="text" value="disk:/uploads/" />
+            </label>
+            <div class="toggles">
+              <label><input id="overwrite" type="checkbox" /> overwrite</label>
+              <label><input id="publishAfter" type="checkbox" /> публичная ссылка</label>
+            </div>
+            <button id="upload" type="button">Загрузить</button>
+          </section>
+
+          <section class="panel">
+            <h2>Папки и просмотр</h2>
+            <label>
+              Путь
+              <input id="folderPath" type="text" value="disk:/" />
+            </label>
+            <div class="button-row">
+              <button id="createFolder" type="button">Создать папку</button>
+              <button id="listFolder" type="button">Список</button>
+              <button id="metadata" type="button">Статус</button>
+            </div>
+          </section>
+        </div>
+
+        <section class="output-band">
+          <div>
+            <h2>Ответ</h2>
+            <pre id="output">{}</pre>
+          </div>
+          <div>
+            <h2>История</h2>
+            <div id="history" class="history"></div>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>
