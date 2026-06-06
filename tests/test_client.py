@@ -9,7 +9,14 @@ from pathlib import Path
 import httpx
 from fastapi import HTTPException
 
-from app.main import _copy_upload_to_temp, _join_disk_path, _parent_disk_paths, yandex_error_handler
+from app.main import (
+    _copy_upload_to_temp,
+    _join_disk_path,
+    _parent_disk_paths,
+    _safe_metadata,
+    _should_skip_folder_upload_path,
+    yandex_error_handler,
+)
 from app.yandex_disk.client import YandexDiskAPIError, YandexDiskClient, normalize_disk_path
 
 
@@ -28,6 +35,23 @@ class ClientTests(unittest.TestCase):
             _parent_disk_paths("disk:/uploads/Folder/Sub/file.txt"),
             ["disk:/uploads", "disk:/uploads/Folder", "disk:/uploads/Folder/Sub"],
         )
+
+    def test_folder_upload_skips_generated_cache_paths(self) -> None:
+        self.assertTrue(_should_skip_folder_upload_path("Clock/__pycache__/gui.cpython-313.pyc"))
+        self.assertTrue(_should_skip_folder_upload_path("Clock/.git/config"))
+        self.assertFalse(_should_skip_folder_upload_path("Clock/gui.py"))
+
+    def test_safe_metadata_omits_temporary_download_links(self) -> None:
+        metadata = _safe_metadata(
+            {
+                "path": "disk:/uploads/file.txt",
+                "name": "file.txt",
+                "size": 12,
+                "file": "https://downloader.disk.yandex.ru/private-temporary-url",
+                "resource_id": "private-resource-id",
+            }
+        )
+        self.assertEqual(metadata, {"path": "disk:/uploads/file.txt", "name": "file.txt", "size": 12})
 
     def test_copy_upload_to_temp_rejects_over_limit_stream(self) -> None:
         with tempfile.NamedTemporaryFile() as tmp:

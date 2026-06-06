@@ -46,6 +46,35 @@ app.add_middleware(LocalAPIMutationHeaderMiddleware)
 app.add_middleware(LocalOnlyMiddleware)
 app.mount("/static", StaticFiles(directory=PROJECT_ROOT / "app" / "static"), name="static")
 
+FOLDER_UPLOAD_EXCLUDED_PARTS = {
+    ".git",
+    ".hg",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pycache__",
+    "node_modules",
+    "venv",
+}
+
+METADATA_RESPONSE_FIELDS = (
+    "path",
+    "type",
+    "name",
+    "created",
+    "modified",
+    "size",
+    "mime_type",
+    "md5",
+    "sha256",
+    "media_type",
+    "antivirus_status",
+    "public_url",
+)
+
 
 def _safe_yandex_error_message(status_code: int) -> str:
     if status_code in {401, 403}:
@@ -176,6 +205,20 @@ def _parent_disk_paths(disk_path: str) -> list[str]:
     return list(reversed(parents))
 
 
+def _relative_path_parts(relative_path: str) -> list[str]:
+    return [part for part in relative_path.replace("\\", "/").split("/") if part and part not in {".", ".."}]
+
+
+def _should_skip_folder_upload_path(relative_path: str) -> bool:
+    return any(part in FOLDER_UPLOAD_EXCLUDED_PARTS for part in _relative_path_parts(relative_path))
+
+
+def _safe_metadata(metadata: dict[str, Any] | None) -> dict[str, Any] | None:
+    if metadata is None:
+        return None
+    return {key: metadata[key] for key in METADATA_RESPONSE_FIELDS if key in metadata}
+
+
 def _format_bytes(value: int) -> str:
     if value < 1024:
         return f"{value} B"
@@ -256,7 +299,7 @@ def upload_file(
                 public_url_value = metadata_result.get("public_url")
                 public_url = public_url_value if isinstance(public_url_value, str) else None
 
-        return {"metadata": metadata_result, "history": history.complete(upload_id, public_url=public_url)}
+        return {"metadata": _safe_metadata(metadata_result), "history": history.complete(upload_id, public_url=public_url)}
     except Exception as exc:
         safe_message = "Не удалось загрузить файл."
         if isinstance(exc, HTTPException) and isinstance(exc.detail, str):
@@ -299,6 +342,7 @@ def upload_folder(
 
     completed: list[dict[str, Any]] = []
     failed: list[dict[str, Any]] = []
+    skipped: list[dict[str, str]] = []
     created_folders: set[str] = set()
     root_path = normalize_disk_path(disk_path)
     total_size = 0
@@ -314,7 +358,10 @@ def upload_folder(
         for upload in files:
             relative_name = upload.filename or ""
             if not relative_name:
-                failed.append({"file": "", "error": "Skipped unnamed file."})
+                skipped.append({"file": "", "reason": "Файл без имени пропущен."})
+                continue
+            if _should_skip_folder_upload_path(relative_name):
+                skipped.append({"file": relative_name, "reason": "Служебный файл или папка пропущены."})
                 continue
 
             target_path = _join_disk_path(root_path, relative_name)
@@ -344,7 +391,7 @@ def upload_folder(
                     published=False,
                 )
                 metadata_result = client.upload_file(temp_name, target_path, overwrite=overwrite)
-                completed.append({"metadata": metadata_result, "history": history.complete(upload_id, public_url=None)})
+                completed.append({"metadata": _safe_metadata(metadata_result), "history": history.complete(upload_id, public_url=None)})
             except Exception as exc:
                 safe_message = "Не удалось загрузить файл."
                 if isinstance(exc, HTTPException) and isinstance(exc.detail, str):
@@ -378,10 +425,12 @@ def upload_folder(
         "root_path": root_path,
         "uploaded_count": len(completed),
         "failed_count": len(failed),
+        "skipped_count": len(skipped),
         "public_url": public_url,
-        "published_metadata": published_metadata,
+        "published_metadata": _safe_metadata(published_metadata),
         "uploaded": completed,
         "failed": failed,
+        "skipped": skipped,
     }
 
 
